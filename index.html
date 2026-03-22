@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Mapa Jugable</title>
+<title>Mapa con Prefabs</title>
 
 <style>
 body {
@@ -15,189 +15,116 @@ body {
     align-items: center;
 }
 
-#menu {
-    margin-top: 40px;
-}
-
-input, button {
-    padding: 10px;
-    font-size: 16px;
-    margin: 5px;
-}
-
 #mapa {
     white-space: pre;
     margin-top: 20px;
     background: black;
     padding: 15px;
     border: 2px solid white;
-    font-size: 12px;
-    line-height: 1.1;
-}
-
-/* Joystick */
-#joystick {
-    margin-top: 20px;
-    display: grid;
-    grid-template-columns: 50px 50px 50px;
-    grid-template-rows: 50px 50px 50px;
-    gap: 5px;
-}
-
-#joystick button {
-    font-size: 18px;
 }
 </style>
 </head>
 <body>
 
-<div id="menu">
-    <input type="text" id="input" placeholder="Introduce palabra...">
-    <button onclick="generar()">Generar</button>
-</div>
-
+<button onclick="generar()">Generar</button>
 <div id="mapa"></div>
 
-<div id="joystick">
-    <div></div>
-    <button onclick="mover(0,-1)">↑</button>
-    <div></div>
-
-    <button onclick="mover(-1,0)">←</button>
-    <div></div>
-    <button onclick="mover(1,0)">→</button>
-
-    <div></div>
-    <button onclick="mover(0,1)">↓</button>
-    <div></div>
-</div>
-
 <script>
-let mapa = [];
-let W = 100;
-let H = 35;
 
-let player = { x: 2, y: 2 };
+// 🔹 PREFABS (usa el tuyo aquí)
+const prefabs = [
+{
+data: [
+"|   N    |",
+"|        |",
+"|   S    |"
+],
+connectors: {
+    N: { x: 4, y: 0 },
+    S: { x: 4, y: 2 }
+}
+}
+];
 
-function stringToSeed(str) {
-    let seed = 0;
-    for (let i = 0; i < str.length; i++) {
-        seed += str.charCodeAt(i) * (i + 1);
-    }
-    return seed;
+// 🔹 MAPA
+const W = 60;
+const H = 25;
+
+// 🔹 seed
+function seedFromText(t){
+    let s = 0;
+    for(let i=0;i<t.length;i++) s += t.charCodeAt(i)*(i+1);
+    return s;
 }
 
-function random(seed) {
-    let x = Math.sin(seed) * 10000;
+function random(seed){
+    let x = Math.sin(seed)*10000;
     return x - Math.floor(x);
 }
 
-function generar() {
-    const texto = document.getElementById("input").value;
-    if (!texto) return;
+function generar(){
 
-    // 🔥 ocultar menú
-    document.getElementById("menu").style.display = "none";
+    let seed = seedFromText("test");
 
-    let seed = stringToSeed(texto);
-
-    function rand(n) {
+    function rand(n){
         seed++;
-        return Math.floor(random(seed) * n);
+        return Math.floor(random(seed)*n);
     }
 
-    mapa = Array.from({ length: H }, () => Array(W).fill(" "));
+    let map = Array.from({length:H},()=>Array(W).fill(" "));
 
-    let nodos = [];
+    function canPlace(x,y,p){
+        for(let i=0;i<p.data.length;i++){
+            for(let j=0;j<p.data[i].length;j++){
+                let char = p.data[i][j];
+                if(char !== " "){
+                    let mx = x + j;
+                    let my = y + i;
 
-    // 🔹 crear nodos (estructura)
-    let total = 10 + rand(5);
+                    if(mx < 0 || my < 0 || mx >= W || my >= H) return false;
 
-    for (let i = 0; i < total; i++) {
-        nodos.push({
-            x: 5 + rand(W - 10),
-            y: 5 + rand(H - 10),
-            w: 6 + rand(8),
-            h: 4 + rand(5)
-        });
+                    if(map[my][mx] !== " ") return false;
+                }
+            }
+        }
+        return true;
     }
 
-    // 🔹 dibujar habitaciones
-    function dibujarHab(x, y, w, h) {
-        for (let i = 0; i < w; i++) {
-            mapa[y][x + i] = "_";
-            mapa[y + h][x + i] = "_";
-        }
-        for (let i = 0; i < h; i++) {
-            mapa[y + i][x] = "|";
-            mapa[y + i][x + w] = "|";
+    function place(x,y,p){
+        for(let i=0;i<p.data.length;i++){
+            for(let j=0;j<p.data[i].length;j++){
+                let char = p.data[i][j];
+                if(char !== " "){
+                    map[y+i][x+j] = char;
+                }
+            }
         }
     }
 
-    // 🔹 conectar nodos (estructura lógica)
-    for (let i = 0; i < nodos.length; i++) {
-        let a = nodos[i];
-        let b = nodos[(i + 1) % nodos.length];
+    // 🔹 colocar primera pieza
+    let first = prefabs[0];
+    let x = 20;
+    let y = 10;
 
-        dibujarHab(a.x, a.y, a.w, a.h);
+    place(x,y,first);
 
-        let ax = a.x + Math.floor(a.w / 2);
-        let ay = a.y + Math.floor(a.h / 2);
-        let bx = b.x + Math.floor(b.w / 2);
-        let by = b.y + Math.floor(b.h / 2);
+    // 🔹 añadir otra pieza conectada
+    let second = prefabs[0];
 
-        // pasillo horizontal
-        for (let x = Math.min(ax, bx); x <= Math.max(ax, bx); x++) {
-            mapa[ay][x] = "_";
-        }
+    let conn1 = first.connectors.N;
+    let conn2 = second.connectors.S;
 
-        // pasillo vertical
-        for (let y = Math.min(ay, by); y <= Math.max(ay, by); y++) {
-            mapa[y][bx] = "|";
-        }
+    let nx = x + conn1.x - conn2.x;
+    let ny = y + conn1.y - conn2.y;
 
-        // puerta lógica
-        mapa[ay][bx] = "∆";
+    if(canPlace(nx,ny,second)){
+        place(nx,ny,second);
     }
-
-    player.x = 5;
-    player.y = 5;
-
-    render();
-}
-
-function render() {
-    let copia = mapa.map(f => f.slice());
-    copia[player.y][player.x] = "•";
 
     document.getElementById("mapa").textContent =
-        copia.map(f => f.join("")).join("\n");
+        map.map(r=>r.join("")).join("\n");
 }
 
-function mover(dx, dy) {
-    let nx = player.x + dx;
-    let ny = player.y + dy;
-
-    if (ny < 0 || ny >= H || nx < 0 || nx >= W) return;
-
-    let tile = mapa[ny][nx];
-
-    if (tile === "|" || tile === "_" ) return;
-
-    if (tile === "∆" || tile === "." || tile === " ") {
-        player.x = nx;
-        player.y = ny;
-    }
-
-    render();
-}
-
-document.addEventListener("keydown", e => {
-    if (e.key === "ArrowUp") mover(0,-1);
-    if (e.key === "ArrowDown") mover(0,1);
-    if (e.key === "ArrowLeft") mover(-1,0);
-    if (e.key === "ArrowRight") mover(1,0);
-});
 </script>
 
 </body>
