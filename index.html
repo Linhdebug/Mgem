@@ -2,43 +2,133 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Generador</title>
+<title>Sistema de Mapas</title>
 
 <style>
-    body {
-        margin: 0;
-        height: 100vh;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background: #111;
-        font-family: Arial, sans-serif;
-    }
+body {
+    margin: 0;
+    background: #111;
+    color: white;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
 
-    .contenedor {
-        text-align: center;
-    }
+input, button {
+    margin-top: 10px;
+    padding: 10px;
+    font-size: 16px;
+}
 
-    input {
-        padding: 10px;
-        font-size: 18px;
-        width: 250px;
-    }
-
-    button {
-        padding: 10px 20px;
-        font-size: 18px;
-        margin-left: 10px;
-        cursor: pointer;
-    }
+#mapa {
+    white-space: pre;
+    margin-top: 20px;
+    background: black;
+    padding: 15px;
+    border: 2px solid white;
+    font-size: 12px;
+    line-height: 1.1;
+}
 </style>
 </head>
 <body>
 
-<div class="contenedor">
-    <input type="text" placeholder="Escribe algo...">
-    <button>Generar</button>
-</div>
+<input type="text" id="input" placeholder="Introduce cualquier texto...">
+<button onclick="generar()">Generar</button>
+
+<div id="mapa"></div>
+
+<script>
+function stringToSeed(str) {
+    let seed = 0;
+    for (let i = 0; i < str.length; i++) {
+        seed += str.charCodeAt(i) * (i + 1);
+    }
+    return seed;
+}
+
+function random(seed) {
+    let x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+}
+
+function generar() {
+    const texto = document.getElementById("input").value.trim();
+    if (!texto) return;
+
+    let seed = stringToSeed(texto);
+
+    function rand(n) {
+        seed++;
+        return Math.floor(random(seed) * n);
+    }
+
+    const W = 100;
+    const H = 35;
+
+    let mapa = Array.from({ length: H }, () => Array(W).fill(" "));
+
+    function dibujarHabitacion(x, y, w, h) {
+        // horizontales
+        for (let i = 0; i < w; i++) {
+            mapa[y][x + i] = "_";
+            mapa[y + h][x + i] = "_";
+        }
+        // verticales
+        for (let i = 0; i < h; i++) {
+            mapa[y + i][x] = "|";
+            mapa[y + i][x + w] = "|";
+        }
+    }
+
+    let habitaciones = [];
+
+    // 🔹 Generar MUCHAS habitaciones
+    let total = 12 + rand(6); // 12–18
+
+    for (let i = 0; i < total; i++) {
+        let w = 6 + rand(12);
+        let h = 4 + rand(6);
+        let x = rand(W - w - 2);
+        let y = rand(H - h - 2);
+
+        habitaciones.push({ x, y, w, h });
+        dibujarHabitacion(x, y, w, h);
+    }
+
+    // 🔹 Conectar habitaciones con puertas
+    for (let i = 1; i < habitaciones.length; i++) {
+        let a = habitaciones[i - 1];
+        let b = habitaciones[i];
+
+        let ax = a.x + Math.floor(a.w / 2);
+        let ay = a.y + Math.floor(a.h / 2);
+        let bx = b.x + Math.floor(b.w / 2);
+        let by = b.y + Math.floor(b.h / 2);
+
+        // Horizontal
+        for (let x = Math.min(ax, bx); x <= Math.max(ax, bx); x++) {
+            if (mapa[ay][x] === " " || mapa[ay][x] === "_") {
+                mapa[ay][x] = "_";
+            }
+        }
+
+        // Vertical
+        for (let y = Math.min(ay, by); y <= Math.max(ay, by); y++) {
+            if (mapa[y][bx] === " " || mapa[y][bx] === "|") {
+                mapa[y][bx] = "|";
+            }
+        }
+
+        // 🔥 Colocar puerta en el punto de conexión
+        mapa[ay][bx] = "∆";
+    }
+
+    let salida = mapa.map(f => f.join("")).join("\n");
+    document.getElementById("mapa").textContent = salida;
+}
+</script>
 
 </body>
 </html>
